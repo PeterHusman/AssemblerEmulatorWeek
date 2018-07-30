@@ -1,0 +1,29 @@
+set r2 1
+set r4 3
+set r6 57
+set r7 54
+set r8 4C
+Start:
+str r2 2
+lod r1 0004
+lod r3 0003
+mod r3 r3 r4
+str r1 5
+str r2 6
+equ r5 r3 r1
+jnz r5 Tie
+add r1 r1 r2
+mod r1 r1 r4
+equ r5 r3 r1
+jnz r5 Loss
+str r6 5
+str r2 6
+jmp Start ; Loop
+Tie:
+str r7 5
+str r2 6
+jmp Start
+Loss:
+str r8 5
+str r2 6
+jmp Start
