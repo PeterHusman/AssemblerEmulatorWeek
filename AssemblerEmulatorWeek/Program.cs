@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using CALib;
@@ -11,27 +12,90 @@ using ConsoleHelper;
 
 namespace AssemblerEmulatorWeek
 {
+    enum Operation
+    {
+        assemble = 0,
+        dissassemble = 1,
+        passemble = 2
+    }
     class Program
     {
         public static void Main(string[] args)
         {
-            Console.WriteLine(CHelper.ASCIIArt("Hello World!", Console.ReadLine()));
+
+            string[] recursiveFileSearch(string pth)
+            {
+                List<string> files = new List<string>();
+                foreach (string s in Directory.EnumerateFiles(pth))
+                {
+                    try
+                    {
+                        files.Add(s);
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                }
+                foreach (string s in Directory.EnumerateDirectories(pth))
+                {
+                    try
+                    {
+                        files.AddRange(recursiveFileSearch(s));
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                }
+                return files.ToArray();
+            }
+            //CHelper.ASCIIArt("Hello World!", Console.ReadLine()));
+            Operation op;
             string path;
             string pathOut;
             string csvPath;
-            if (args.Length >= 3)
+            if (args.Length >= 4)
             {
                 path = args[0];
                 pathOut = args[1];
                 csvPath = args[2];
+                op = (Operation)Enum.Parse(typeof(Operation), args[3], true);
             }
             else
             {
-                path = CHelper.RequestInput("What is the input file path?", true, ConsoleColor.Yellow, ConsoleColor.Gray, AutocompleteOptions.None);
-                pathOut = CHelper.RequestInput("What is the output file path?", true, ConsoleColor.Yellow, ConsoleColor.Gray, AutocompleteOptions.None);
-                csvPath = CHelper.RequestInput("What is the .csv file path?", true, ConsoleColor.Yellow, ConsoleColor.Gray, AutocompleteOptions.None);
+                Console.WriteLine(CHelper.ASCIIArt("PASM ASSEMBLER", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));//, @"C:\Users\PeterHusman\Documents\FontFile.json"));
+                Console.WriteLine(@"                                  _     _           
+     /\                          | |   | |          
+    /  \   ___ ___  ___ _ __ ___ | |__ | | ___ _ __ 
+   / /\ \ / __/ __|/ _ \ '_ ` _ \| '_ \| |/ _ \ '__|
+  / ____ \\__ \__ \  __/ | | | | | |_) | |  __/ |   
+ /_/    \_\___/___/\___|_| |_| |_|_.__/|_|\___|_|  ");
+                int choice = CHelper.SelectorMenu("Please select an action.", new string[] { "Assemble", "Dissassemble", "Pseudoassemble" }, true, ConsoleColor.Yellow, ConsoleColor.Gray, ConsoleColor.Magenta);
+                Console.WriteLine();
+                string[] recFiles = recursiveFileSearch($@"C:\Users\{Environment.UserName}");
+                path = CHelper.RequestInput("What is the input file path?", true, ConsoleColor.Yellow, ConsoleColor.Gray, recFiles);
+                pathOut = CHelper.RequestInput("What is the output file path?", true, ConsoleColor.Yellow, ConsoleColor.Gray, recFiles);
+                csvPath = CHelper.RequestInput("What is the .csv file path?", true, ConsoleColor.Yellow, ConsoleColor.Gray, recFiles);
+                op = (Operation)choice;
             }
-            Assemble(path, GetOpCodesFromCSV(csvPath), pathOut, true);
+            var csv = GetOpCodesFromCSV(csvPath);
+            switch (op)
+            {
+                case Operation.assemble:
+                    Assemble(path, csv, pathOut, true);
+                    break;
+                case Operation.dissassemble:
+                    Dissassemble(path, csv, pathOut);
+                    break;
+                case Operation.passemble:
+                    HelperToAsm(path, pathOut);
+                    break;
+            }
+            //var csv2 = GetOpCodesFromCSV(csvPath);
+            //HelperToAsm(path, pathOut);
+            //Assemble(pathOut, csv, pathOut, true);
+
             //string[] lines = File.ReadAllLines(path);
             //Dictionary<string, uint> labels = new Dictionary<string, uint>();
             //List<byte> output = new List<byte>();
@@ -49,14 +113,51 @@ namespace AssemblerEmulatorWeek
 
             //}
             //File.WriteAllBytes(pathOut, output.ToArray());
-            Console.ReadKey();
+            //Console.ReadKey();
         }
 
         public static void Dissassemble(string fileInPath, Dictionary<string, int[]> opCodes, string fileOutPath)
         {
             byte[] bytes = File.ReadAllBytes(fileInPath);
-            
-            throw new NotImplementedException();
+            string[] outLines = new string[bytes.Length / 4];
+            int ptr = 0;
+            Span<byte> instructions = (bytes.AsSpan());
+            for (int i = 0; i < bytes.Length / 4; i++)
+            {
+                ptr = 4 * i;
+                for (int j = 0; j < (opCodes.Values.ToArray().Length); j++)
+                {
+                    if (instructions[ptr] == opCodes.Values.ToArray()[j][0])
+                    {
+                        outLines[i] = opCodes.Keys.ToArray()[j];
+                        int ptrIncr = ptr + 1;
+                        for (int k = 1; k < opCodes.Values.ToArray()[j].Length; k++)
+                        {
+                            switch (opCodes.Values.ToArray()[j][k])
+                            {
+                                case -1:
+                                    ptrIncr++;
+                                    break;
+                                case 0:
+                                    ptrIncr++;
+                                    break;
+                                case 1:
+                                    outLines[i] += " " + instructions[ptrIncr].ToString("X2");
+                                    ptrIncr++;
+                                    break;
+                                case 2:
+                                    byte[] inst = instructions.Slice(ptrIncr, 2).ToArray();
+                                    inst = inst.Reverse().ToArray();
+                                    outLines[i] += " " + MemoryMarshal.Cast<byte, ushort>(inst.AsSpan())[0].ToString("X5");
+                                    ptrIncr++;
+                                    break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            File.WriteAllLines(fileOutPath, outLines);
         }
 
 
