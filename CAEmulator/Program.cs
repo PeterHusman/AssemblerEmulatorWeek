@@ -6,17 +6,56 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using CALib;
+using ConsoleHelper;
 
 namespace CAEmulator
 {
-    class Program
+    public class Program
     {
-        static void Main(string[] args)
+
+        public static void Main(string[] args)
         {
+            string[] recursiveFileSearch(string pth)
+            {
+                List<string> files = new List<string>();
+                foreach (string s in Directory.EnumerateFiles(pth))
+                {
+                    try
+                    {
+                        files.Add(s);
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                }
+                foreach (string s in Directory.EnumerateDirectories(pth))
+                {
+                    try
+                    {
+                        files.AddRange(recursiveFileSearch(s));
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                }
+                return files.ToArray();
+            }
             ushort[] registers = new ushort[0x100];
             registers[0] = 0x0000;
             Span<byte> registerSpan = MemoryMarshal.AsBytes(registers.AsSpan());
-            byte[] program = File.ReadAllBytes(args[0]);
+            string filePath;
+            if (args.Length > 0)
+            {
+                filePath = args[0];
+            }
+            else
+            {
+                Console.WriteLine(CHelper.ASCIIArt("PEmulator", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));
+                filePath = CHelper.RequestInput("Please enter the file path of the program to emulate.", true, ConsoleColor.Yellow, ConsoleColor.Gray, recursiveFileSearch($@"C:\Users\{Environment.UserName}"));
+            }
+            byte[] program = File.ReadAllBytes(filePath);
             Random rand = new Random();
             MemoryMap memoryMap = new MemoryMap(program);
             while (memoryMap[0x0000] == 0)
@@ -174,6 +213,11 @@ namespace CAEmulator
                         break;
                     case OpCodes.shr:
                         registers[instruction[1]] = (ushort)(registers[instruction[2]] >> registers[instruction[3]]);
+                        break;
+                    case OpCodes.lpm:
+                        byte[] inst8 = instruction.Slice(2).ToArray();
+                        inst8 = inst8.Reverse().ToArray();
+                        registers[instruction[1]] = (ushort)(MemoryMarshal.Cast<byte, ushort>(inst8)[0] * 2 + 0x8000);
                         break;
                     default:
                         throw new InvalidOperationException();

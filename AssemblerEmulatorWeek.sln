@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CAEmulator", "CAEmulator\CA
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeleteMe", "DeleteMe\DeleteMe.csproj", "{152E00AB-6670-42EA-A432-302B29D6BA1D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CASuite", "CASuite\CASuite.csproj", "{552191CD-64F9-4B27-B252-2FC1353AD23E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{152E00AB-6670-42EA-A432-302B29D6BA1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{152E00AB-6670-42EA-A432-302B29D6BA1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{152E00AB-6670-42EA-A432-302B29D6BA1D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{552191CD-64F9-4B27-B252-2FC1353AD23E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{552191CD-64F9-4B27-B252-2FC1353AD23E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{552191CD-64F9-4B27-B252-2FC1353AD23E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{552191CD-64F9-4B27-B252-2FC1353AD23E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

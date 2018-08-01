@@ -6,6 +6,15 @@ using System.Text;
 
 namespace ConsoleHelper
 {
+    public class Trie
+    {
+        class Node
+        {
+            List<Node> children;
+            
+        }
+    }
+
     public abstract class CHelper
     {
         //Dictionary<char, string> dictionary
@@ -123,6 +132,7 @@ namespace ConsoleHelper
                             }
                             if(autoComplete[0][i] != s[i])
                             {
+                                y = true;
                                 x = true;
                                 break;
                             }

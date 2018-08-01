@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{5EDDD1BD-2A97-4A72-80E9-DC5592CD8E8C}</ProjectGuid>
+    <ProjectGuid>{552191CD-64F9-4B27-B252-2FC1353AD23E}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>CAEmulator</RootNamespace>
-    <AssemblyName>CAEmulator</AssemblyName>
+    <RootNamespace>CASuite</RootNamespace>
+    <AssemblyName>CASuite</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -21,7 +21,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -59,8 +58,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MemoryMap.cs" />
-    <Compile Include="MemoryMappedIO.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -69,13 +66,25 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AssemblerEmulatorWeek\CAAssembler.csproj">
+      <Project>{6522f5b2-8b9a-41c8-b9aa-e8004a02b05d}</Project>
+      <Name>CAAssembler</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\CAEmulator\CAEmulator.csproj">
+      <Project>{5eddd1bd-2a97-4a72-80e9-dc5592cd8e8c}</Project>
+      <Name>CAEmulator</Name>
+    </ProjectReference>
     <ProjectReference Include="..\CALib\CALib.csproj">
       <Project>{494e2564-8bf2-4825-826c-739500b5c4d3}</Project>
       <Name>CALib</Name>
     </ProjectReference>
     <ProjectReference Include="..\ConsoleHelper\ConsoleHelper.csproj">
-      <Project>{11037F0B-68FE-4E95-86A7-25DEA4695486}</Project>
+      <Project>{11037f0b-68fe-4e95-86a7-25dea4695486}</Project>
       <Name>ConsoleHelper</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Tests\Tests.csproj">
+      <Project>{d6fa3b27-13c2-4892-b06d-74dc5d4d456e}</Project>
+      <Name>Tests</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

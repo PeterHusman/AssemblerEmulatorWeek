@@ -46,6 +46,7 @@ namespace CALib
 
         cli,
         shl,
-        shr
+        shr,
+        lpm
     }
 }

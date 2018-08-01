@@ -9,16 +9,18 @@ using System.Text;
 using System.Threading.Tasks;
 using CALib;
 using ConsoleHelper;
+using Newtonsoft.Json;
 
-namespace AssemblerEmulatorWeek
+namespace CAAssembler
 {
     enum Operation
     {
         assemble = 0,
         dissassemble = 1,
-        passemble = 2
+        passemble = 2,
+        fullassemble = 3
     }
-    class Program
+    public class Program
     {
         public static void Main(string[] args)
         {
@@ -64,14 +66,14 @@ namespace AssemblerEmulatorWeek
             }
             else
             {
-                Console.WriteLine(CHelper.ASCIIArt("PASM ASSEMBLER", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));//, @"C:\Users\PeterHusman\Documents\FontFile.json"));
-                Console.WriteLine(@"                                  _     _           
-     /\                          | |   | |          
-    /  \   ___ ___  ___ _ __ ___ | |__ | | ___ _ __ 
-   / /\ \ / __/ __|/ _ \ '_ ` _ \| '_ \| |/ _ \ '__|
-  / ____ \\__ \__ \  __/ | | | | | |_) | |  __/ |   
- /_/    \_\___/___/\___|_| |_| |_|_.__/|_|\___|_|  ");
-                int choice = CHelper.SelectorMenu("Please select an action.", new string[] { "Assemble", "Dissassemble", "Pseudoassemble" }, true, ConsoleColor.Yellow, ConsoleColor.Gray, ConsoleColor.Magenta);
+                Console.WriteLine(CHelper.ASCIIArt("PASSEMBLER", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));//, @"C:\Users\PeterHusman\Documents\FontFile.json"));
+ //               Console.WriteLine(@"                                  _     _           
+ //    /\                          | |   | |          
+ //   /  \   ___ ___  ___ _ __ ___ | |__ | | ___ _ __ 
+ //  / /\ \ / __/ __|/ _ \ '_ ` _ \| '_ \| |/ _ \ '__|
+ // / ____ \\__ \__ \  __/ | | | | | |_) | |  __/ |   
+ ///_/    \_\___/___/\___|_| |_| |_|_.__/|_|\___|_|  ");
+                int choice = CHelper.SelectorMenu("Please select an action.", new string[] { "Assemble", "Dissassemble", "Pseudoassemble", "Pseudoassemble and assemble" }, true, ConsoleColor.Yellow, ConsoleColor.Gray, ConsoleColor.Magenta);
                 Console.WriteLine();
                 string[] recFiles = recursiveFileSearch($@"C:\Users\{Environment.UserName}");
                 path = CHelper.RequestInput("What is the input file path?", true, ConsoleColor.Yellow, ConsoleColor.Gray, recFiles);
@@ -91,6 +93,16 @@ namespace AssemblerEmulatorWeek
                 case Operation.passemble:
                     HelperToAsm(path, pathOut);
                     break;
+                case Operation.fullassemble:
+                    HelperToAsm(path, pathOut);
+                    Assemble(pathOut, csv, pathOut, true);
+                    break;
+            }
+            if(args.Length < 4)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Finished");
+                Console.ReadKey(true);
             }
             //var csv2 = GetOpCodesFromCSV(csvPath);
             //HelperToAsm(path, pathOut);
@@ -121,39 +133,54 @@ namespace AssemblerEmulatorWeek
             byte[] bytes = File.ReadAllBytes(fileInPath);
             string[] outLines = new string[bytes.Length / 4];
             int ptr = 0;
+            bool progmem = false;
             Span<byte> instructions = (bytes.AsSpan());
             for (int i = 0; i < bytes.Length / 4; i++)
             {
                 ptr = 4 * i;
-                for (int j = 0; j < (opCodes.Values.ToArray().Length); j++)
+                if (instructions[ptr] == 0xFF && instructions[ptr + 1] == 0xFF && instructions[ptr + 2] == 0xFF && instructions[ptr + 3] == 0xFF)
                 {
-                    if (instructions[ptr] == opCodes.Values.ToArray()[j][0])
+                    progmem = true;
+                    outLines[i] = "PROGMEM";
+                }
+                else if (progmem)
+                {
+                    byte[] subset = instructions.Slice(ptr, 4).ToArray();
+                    subset = subset.Reverse().ToArray();
+                    outLines[i] = MemoryMarshal.Cast<byte, uint>(subset)[0].ToString("X4");
+                }
+                else
+                {
+                    for (int j = 0; j < (opCodes.Values.ToArray().Length); j++)
                     {
-                        outLines[i] = opCodes.Keys.ToArray()[j];
-                        int ptrIncr = ptr + 1;
-                        for (int k = 1; k < opCodes.Values.ToArray()[j].Length; k++)
+                        if (instructions[ptr] == opCodes.Values.ToArray()[j][0])
                         {
-                            switch (opCodes.Values.ToArray()[j][k])
+                            outLines[i] = opCodes.Keys.ToArray()[j];
+                            int ptrIncr = ptr + 1;
+                            for (int k = 1; k < opCodes.Values.ToArray()[j].Length; k++)
                             {
-                                case -1:
-                                    ptrIncr++;
-                                    break;
-                                case 0:
-                                    ptrIncr++;
-                                    break;
-                                case 1:
-                                    outLines[i] += " " + instructions[ptrIncr].ToString("X2");
-                                    ptrIncr++;
-                                    break;
-                                case 2:
-                                    byte[] inst = instructions.Slice(ptrIncr, 2).ToArray();
-                                    inst = inst.Reverse().ToArray();
-                                    outLines[i] += " " + MemoryMarshal.Cast<byte, ushort>(inst.AsSpan())[0].ToString("X5");
-                                    ptrIncr++;
-                                    break;
+                                switch (opCodes.Values.ToArray()[j][k])
+                                {
+                                    case -1:
+                                        ptrIncr++;
+                                        break;
+                                    case 0:
+                                        ptrIncr++;
+                                        break;
+                                    case 1:
+                                        outLines[i] += " " + instructions[ptrIncr].ToString("X2");
+                                        ptrIncr++;
+                                        break;
+                                    case 2:
+                                        byte[] inst = instructions.Slice(ptrIncr, 2).ToArray();
+                                        inst = inst.Reverse().ToArray();
+                                        outLines[i] += " " + MemoryMarshal.Cast<byte, ushort>(inst.AsSpan())[0].ToString("X5");
+                                        ptrIncr++;
+                                        break;
+                                }
                             }
+                            break;
                         }
-                        break;
                     }
                 }
             }
@@ -169,6 +196,12 @@ namespace AssemblerEmulatorWeek
                 string[] subParams = lines[i].Split(' ');
                 if (subParams.Length < 2)
                 {
+                    switch(subParams[0])
+                    {
+                        case "write":
+                            lines[i] = $"set r21 1\nstr {subParams[1]} 5\nstr r21 6";
+                            break;
+                    }
                     continue;
                 }
                 if (subParams[1] == "=")
@@ -272,25 +305,58 @@ namespace AssemblerEmulatorWeek
         public static void Assemble(string filePathIn, Dictionary<string, int[]> opCodes, string filePathOut, bool outputAsBytes)
         {
             string[] lines = File.ReadAllText(filePathIn).Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            uint[] outlines = new uint[lines.Length];
+            List<uint> outlines = new List<uint>();
+
+            bool progmem = false;
             Dictionary<string, ushort> labels = new Dictionary<string, ushort>();
+            Dictionary<string, ushort> ptrs = new Dictionary<string, ushort>();
+            int ptrTemp = 0;
+            int progmemInd = ushort.MaxValue;
             for (int i = 0; i < lines.Length; i++)
             {
                 lines[i] = lines[i].Split(';')[0];
                 lines[i] = lines[i].Replace("\r", "");
                 lines[i] = lines[i].Trim(' ');
+                if (lines[i] == "PROGMEM")
+                {
+                    progmemInd = i;
+                }
+                if (lines[i].Split(' ')[0].EndsWith(":") && progmemInd != ushort.MaxValue)
+                {
+                    ptrs.Add(lines[i].Split(' ')[0].Remove(lines[i].Split(' ')[0].Length - 1), (ushort)ptrTemp);
+                    lines[i] = lines[i].Remove(0, lines[i].Split(' ')[0].Length + 1);
+                    
+                    if (lines[i].Contains('"'))
+                    {
+                        ptrTemp += (int)Math.Ceiling(((double)lines[i].Length - 2));
+                    }
+                    else
+                    {
+                        lines[i] = lines[i].Replace(" ", "");
+                        ptrTemp += (int)Math.Ceiling(((double)lines[i].TrimStart('0').Length) / 2);
+                    }
+                    continue;
+                }
                 if (lines[i].EndsWith(":"))
                 {
                     labels.Add(lines[i].Remove(lines[i].Length - 1), (ushort)i);
                     lines[i] = "nop";
                 }
+                ptrTemp++;
             }
             for (int i = 0; i < lines.Length; i++)
             {
-                lines[i] = lines[i].Replace(",", "");
-                foreach (string label in labels.Keys.ToArray())
+                if (i < progmemInd)
                 {
-                    lines[i] = lines[i].Replace(label, labels[label].ToString("X"));
+                    lines[i] = lines[i].Replace(",", "");
+                    foreach (string label in labels.Keys.ToArray())
+                    {
+                        lines[i] = lines[i].Replace(label, labels[label].ToString("X"));
+                    }
+                    foreach (string ptr in ptrs.Keys.ToArray())
+                    {
+                        lines[i] = lines[i].Replace(ptr, ptrs[ptr].ToString("X"));
+                    }
                 }
                 string[] subParams = lines[i].Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (subParams.Length <= 0)
@@ -301,50 +367,98 @@ namespace AssemblerEmulatorWeek
                 {
                     subParams[k] = subParams[k].Replace("r", "");
                 }
-                foreach (string o in opCodes.Keys.ToArray())
+                if (subParams[0] == "PROGMEM")
                 {
-                    if (subParams[0] == o)
+                    outlines.Add(0xFFFF_FFFF);
+                    progmem = true;
+                }
+                else if (progmem)
+                {
+                    if (lines[i].Contains('"'))
                     {
-                        int[] cols = opCodes[o];
-                        outlines[i] = (uint)cols[0];
-                        int subParamsI = 1;
-                        bool brk = false;
-                        for (int j = 1; j <= 3; j++)
+                        string temp = JsonConvert.DeserializeObject<string>(lines[i]);
+                        List<uint> list = new List<uint>();
+                        for (int j = 0; j < temp.Length; j++)
                         {
-                            outlines[i] = (uint)(outlines[i] << 8);
-                            switch (cols[j])
-                            {
-                                case -1:
-                                    break;
-                                case 0:
-                                    brk = true;
-                                    break;
-                                case 1:
-                                    outlines[i] += uint.Parse(subParams[subParamsI], NumberStyles.HexNumber);
-                                    subParamsI++;
-                                    break;
-                                case 2:
-                                    outlines[i] = (uint)(outlines[i] << 8);
-                                    outlines[i] += uint.Parse(subParams[subParamsI], NumberStyles.HexNumber);
-                                    subParamsI++;
-                                    brk = true;
-                                    break;
-
-
-                            }
-                            if (brk)
-                            {
-                                break;
-                            }
+                            list.Add((uint)temp[j]);
                         }
-                        break;
+                        list.Add(0);
+                        outlines.AddRange(list.ToArray());
+                    }
+                    else
+                    {
+                        string temp = lines[i];
+                        for(int j = 0; j < temp.Length/8; j++)
+                        {
+                            uint n = 0;
+                            for (int k = 0; k < 8; k++)
+                            {
+                                n <<= 4;
+                                n = uint.Parse(temp[j + k].ToString(), NumberStyles.HexNumber);
+                            }
+                            outlines.Insert(i, n);
+                        }
+                        uint m = 0;
+                        for(int j = 0; j < temp.Length % 8; j++)
+                        {
+                            m <<= 4;
+                            m = uint.Parse(temp[temp.Length/8 + j].ToString(), NumberStyles.HexNumber);
+                        }
+                        outlines.Insert(i, m);
+                    }
+                }
+                else
+                {
+                    foreach (string o in opCodes.Keys.ToArray())
+                    {
+                        if (subParams[0] == o)
+                        {
+                            int[] cols = opCodes[o];
+                            outlines.Add((uint)cols[0]);
+                            int subParamsI = 1;
+                            bool brk = false;
+                            if(outlines.Count <= i)
+                            {
+                                outlines.Add(0);
+                            }
+                            for (int j = 1; j <= 3; j++)
+                            {
+                                outlines[i] = (uint)(outlines[i] << 8);
+                                switch (cols[j])
+                                {
+                                    case -1:
+                                        break;
+                                    case 0:
+                                        brk = true;
+                                        break;
+                                    case 1:
+                                        outlines[i] += uint.Parse(subParams[subParamsI], NumberStyles.HexNumber);
+                                        subParamsI++;
+                                        break;
+                                    case 2:
+                                        outlines[i] = (uint)(outlines[i] << 8);
+                                        outlines[i] += uint.Parse(subParams[subParamsI], NumberStyles.HexNumber);
+                                        subParamsI++;
+                                        brk = true;
+                                        break;
+
+
+                                }
+                                if (brk)
+                                {
+                                    break;
+                                }
+                            }
+                            break;
+
+                        }
                     }
                 }
             }
             if (!outputAsBytes)
             {
-                string[] outputLines = new string[outlines.Length];
-                for (int i = 0; i < outlines.Length; i++)
+                string[] outputLines = new string[outlines.Count];
+                for (int i = 0; i < outlines.Count; i++)
                 {
                     outputLines[i] = outlines[i].ToString("X8");
                 }
@@ -352,8 +466,8 @@ namespace AssemblerEmulatorWeek
             }
             else
             {
-                byte[] outputBytes = new byte[outlines.Length * 4];
-                for (int i = 0; i < outlines.Length; i++)
+                byte[] outputBytes = new byte[outlines.Count * 4];
+                for (int i = 0; i < outlines.Count; i++)
                 {
                     outputBytes[i * 4] = (byte)(outlines[i] >> 24);
                     outputBytes[i * 4 + 1] = (byte)(outlines[i] >> 16);
