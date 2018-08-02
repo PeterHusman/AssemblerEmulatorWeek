@@ -66,13 +66,13 @@ namespace CAAssembler
             }
             else
             {
-                Console.WriteLine(CHelper.ASCIIArt("PASSEMBLER", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));//, @"C:\Users\PeterHusman\Documents\FontFile.json"));
- //               Console.WriteLine(@"                                  _     _           
- //    /\                          | |   | |          
- //   /  \   ___ ___  ___ _ __ ___ | |__ | | ___ _ __ 
- //  / /\ \ / __/ __|/ _ \ '_ ` _ \| '_ \| |/ _ \ '__|
- // / ____ \\__ \__ \  __/ | | | | | |_) | |  __/ |   
- ///_/    \_\___/___/\___|_| |_| |_|_.__/|_|\___|_|  ");
+                Console.WriteLine(CHelper.ASCIIArt("PAssembler", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));//, @"C:\Users\PeterHusman\Documents\FontFile.json"));
+                                                                                                                                          //               Console.WriteLine(@"                                  _     _           
+                                                                                                                                          //    /\                          | |   | |          
+                                                                                                                                          //   /  \   ___ ___  ___ _ __ ___ | |__ | | ___ _ __ 
+                                                                                                                                          //  / /\ \ / __/ __|/ _ \ '_ ` _ \| '_ \| |/ _ \ '__|
+                                                                                                                                          // / ____ \\__ \__ \  __/ | | | | | |_) | |  __/ |   
+                                                                                                                                          ///_/    \_\___/___/\___|_| |_| |_|_.__/|_|\___|_|  ");
                 int choice = CHelper.SelectorMenu("Please select an action.", new string[] { "Assemble", "Dissassemble", "Pseudoassemble", "Pseudoassemble and assemble" }, true, ConsoleColor.Yellow, ConsoleColor.Gray, ConsoleColor.Magenta);
                 Console.WriteLine();
                 string[] recFiles = recursiveFileSearch($@"C:\Users\{Environment.UserName}");
@@ -98,7 +98,7 @@ namespace CAAssembler
                     Assemble(pathOut, csv, pathOut, true);
                     break;
             }
-            if(args.Length < 4)
+            if (args.Length < 4)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Finished");
@@ -172,9 +172,7 @@ namespace CAAssembler
                                         ptrIncr++;
                                         break;
                                     case 2:
-                                        byte[] inst = instructions.Slice(ptrIncr, 2).ToArray();
-                                        inst = inst.Reverse().ToArray();
-                                        outLines[i] += " " + MemoryMarshal.Cast<byte, ushort>(inst.AsSpan())[0].ToString("X5");
+                                        outLines[i] += " " + MemoryMarshal.Cast<byte, ushort>(instructions.Slice(ptrIncr, 2))[0].ToString("X5");
                                         ptrIncr++;
                                         break;
                                 }
@@ -190,19 +188,136 @@ namespace CAAssembler
 
         public static void HelperToAsm(string fileInPath, string fileOutPath)
         {
+            int lineNumberForEndOfScope(string[] lns, int startingLine)
+            {
+                int scope = 0;
+                for (int j = startingLine; j < lns.Length; j++)
+                {
+                    if (lns[j].StartsWith("{"))
+                    {
+                        scope++;
+                    }
+                    else if (lns[j].StartsWith("}"))
+                    {
+                        scope--;
+                        if (scope == 0)
+                        {
+                            return j;
+                        }
+                    }
+                }
+                return -1;
+            }
             string[] lines = File.ReadAllLines(fileInPath);
+            Dictionary<string, ushort> variables = new Dictionary<string, ushort>();
             for (int i = 0; i < lines.Length; i++)
             {
-                string[] subParams = lines[i].Split(' ');
-                if (subParams.Length < 2)
+                if (lines[i].Contains("="))
                 {
-                    switch(subParams[0])
+                    string s = lines[i].Split('=')[0];
+                    uint temp = 0;
+                    if (!uint.TryParse(s.Remove(0, 1), NumberStyles.HexNumber, CultureInfo.CurrentCulture.NumberFormat, out temp))
+                    {
+                        variables.Add(s.Remove(0,1), (ushort)(variables.Count + 128));
+                    }
+                }
+            }
+            for (int i = 0; i < lines.Length; i++)
+            {
+                lines[i] = lines[i].Split(';')[0].Trim(' ');
+                string[] subParams = lines[i].Split(' ');
+                if (subParams.Length <= 2)
+                {
+                    switch (subParams[0])
                     {
                         case "write":
                             lines[i] = $"set r21 1\nstr {subParams[1]} 5\nstr r21 6";
                             break;
+                        case "writeI":
+                            lines[i] = $"set r21 1\nstr {subParams[1]} 7\nstr r21 8";
+                            break;
                     }
                     continue;
+                }
+                if ((subParams[0] == "while" && subParams.Length == 4) || (subParams[0] == "do" && subParams[1] == "while" && subParams.Length == 5))
+                {
+                    int zero = subParams.Length - 4;
+                    int endScopeLine = lineNumberForEndOfScope(lines, i);
+                    string startLabel = "whileStart" + i;
+                    string endLabel = "while" + endScopeLine;
+                    lines[endScopeLine] = endLabel + ":\n";
+                    lines[i] = "";
+                    if (subParams[0] == "do")
+                    {
+                        lines[i] = $"jmp {endLabel}\n";
+                    }
+                    lines[i] += $"{startLabel}:";
+                    switch (subParams[2])
+                    {
+                        case "<":
+                            lines[endScopeLine] += $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}";
+                            break;
+                        case ">":
+                            lines[endScopeLine] += $"leq r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}";
+                            break;
+                        case "<=":
+                            lines[endScopeLine] += $"leq r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}";
+                            break;
+                        case ">=":
+                            lines[endScopeLine] += $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}";
+                            break;
+                        case "==":
+                            lines[endScopeLine] += $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}";
+                            break;
+                        case "!=":
+                            lines[endScopeLine] += $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}\nleq r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}";
+                            break;
+                    }
+                }
+                else if (subParams[0] == "if" && subParams.Length == 4)
+                {
+                    int endScopeLine = lineNumberForEndOfScope(lines, i);
+                    string endLabel = "if" + endScopeLine;
+                    lines[endScopeLine] = endLabel + ":";
+                    int endScopeLineElse = 0;
+                    if (lines.Length > endScopeLine + 1 && lines[endScopeLine + 1] == "else")
+                    {
+                        endScopeLineElse = lineNumberForEndOfScope(lines, endScopeLine + 1);
+                        string elseEndLabel = $"elseEnd{endScopeLineElse}";
+                        lines[endScopeLineElse] = $"{elseEndLabel}:";
+                        lines[endScopeLine] = $"jmp {elseEndLabel}\n" + lines[endScopeLine];
+                        lines[endScopeLine + 1] = "";
+                        lines[endScopeLine + 2] = "";
+                    }
+                    switch (subParams[2])
+                    {
+                        case "<":
+                            lines[i] = $"lth r21 {subParams[1]} {subParams[3]}";
+                            lines[i + 1] = $"jiz r21 {endLabel}";
+                            break;
+                        case ">":
+                            lines[i] = $"leq r21 {subParams[1]} {subParams[3]}";
+                            lines[i + 1] = $"jnz r21 {endLabel}";
+                            break;
+                        case "<=":
+                            lines[i] = $"leq r21 {subParams[1]} {subParams[3]}";
+                            lines[i + 1] = $"jiz r21 {endLabel}";
+                            break;
+                        case ">=":
+                            lines[i] = $"lth r21 {subParams[1]} {subParams[3]}";
+                            lines[i + 1] = $"jnz r21 {endLabel}";
+                            break;
+                        case "==":
+                            lines[i] = $"lth r21 {subParams[1]} {subParams[3]}";
+                            lines[i + 1] = $"jnz r21 {endLabel}\nleq r21 {subParams[1]} {subParams[3]}\njiz r21 {endLabel}";
+                            break;
+                        case "!=":
+                            string startLabel = "ifStart" + i;
+                            lines[i] = $"lth r21 {subParams[1]} {subParams[3]}";
+                            lines[i + 1] = $"jnz r21 {startLabel}\nleq r21 {subParams[1]} {subParams[3]}\njiz r21 {startLabel}\njmp {endLabel}\n{startLabel}:";
+                            break;
+                    }
+
                 }
                 if (subParams[1] == "=")
                 {
@@ -217,11 +332,15 @@ namespace CAAssembler
                                 }
                                 else if (subParams[0].StartsWith("*"))
                                 {
+                                    //if (!subParams[2].Contains("r"))
+                                    //{
+                                    //    lines[i] = $"";
+                                    //}
                                     lines[i] = $"str {subParams[2]} {subParams[0].Remove(0, 1)}";
                                 }
                                 else if (subParams[2].StartsWith("*r"))
                                 {
-                                    lines[i] = $"ldi {subParams[0]} {subParams[2].Remove(0, 1)}";
+                                    lines[i] = $"ldi {subParams[0]} {subParams[2].Remove(0, 1)} 0";
                                 }
                                 else if (subParams[2].StartsWith("*"))
                                 {
@@ -325,7 +444,7 @@ namespace CAAssembler
                 {
                     ptrs.Add(lines[i].Split(' ')[0].Remove(lines[i].Split(' ')[0].Length - 1), (ushort)ptrTemp);
                     lines[i] = lines[i].Remove(0, lines[i].Split(' ')[0].Length + 1);
-                    
+
                     if (lines[i].Contains('"'))
                     {
                         ptrTemp += (int)Math.Ceiling(((double)lines[i].Length - 2));
@@ -333,6 +452,10 @@ namespace CAAssembler
                     else
                     {
                         lines[i] = lines[i].Replace(" ", "");
+                        for (int m = 0; m < lines[i].Length / 4; m++)
+                        {
+                            lines[i] = lines[i].Insert(m * 4 + m, " ");
+                        }
                         ptrTemp += (int)Math.Ceiling(((double)lines[i].TrimStart('0').Length) / 2);
                     }
                     continue;
@@ -351,11 +474,28 @@ namespace CAAssembler
                     lines[i] = lines[i].Replace(",", "");
                     foreach (string label in labels.Keys.ToArray())
                     {
-                        lines[i] = lines[i].Replace(label, labels[label].ToString("X"));
+                        for (int j = 0; j < lines[i].Split(' ').Length; j++)
+                        {
+                            if (lines[i].Split(' ')[j] == label)
+                            {
+                                lines[i] = lines[i].Replace(label, labels[label].ToString("X"));
+                            }
+
+                        }
                     }
-                    foreach (string ptr in ptrs.Keys.ToArray())
+                    if (lines[i].StartsWith("lpm"))
                     {
-                        lines[i] = lines[i].Replace(ptr, ptrs[ptr].ToString("X"));
+                        foreach (string ptr in ptrs.Keys.ToArray())
+                        {
+                            for (int j = 0; j < lines[i].Split(' ').Length; j++)
+                            {
+                                if (lines[i].Split(' ')[j] == ptr)
+                                {
+                                    lines[i] = lines[i].Replace(ptr, ptrs[ptr].ToString("X"));
+                                }
+
+                            }
+                        }
                     }
                 }
                 string[] subParams = lines[i].Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -380,7 +520,7 @@ namespace CAAssembler
                         List<uint> list = new List<uint>();
                         for (int j = 0; j < temp.Length; j++)
                         {
-                            list.Add((uint)temp[j]);
+                            list.Add((uint)temp[j] << 8);
                         }
                         list.Add(0);
                         outlines.AddRange(list.ToArray());
@@ -388,23 +528,16 @@ namespace CAAssembler
                     else
                     {
                         string temp = lines[i];
-                        for(int j = 0; j < temp.Length/8; j++)
+                        string[] lns = temp.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        for (int j = 0; j < lns.Length; j++)
                         {
-                            uint n = 0;
-                            for (int k = 0; k < 8; k++)
-                            {
-                                n <<= 4;
-                                n = uint.Parse(temp[j + k].ToString(), NumberStyles.HexNumber);
-                            }
-                            outlines.Insert(i, n);
+                            ushort s = ushort.Parse(lns[j], NumberStyles.HexNumber);
+                            uint toAdd = 0;
+                            toAdd += (byte)(s);
+                            toAdd <<= 8;
+                            toAdd += (byte)(s >> 8);
+                            outlines.Add(toAdd);
                         }
-                        uint m = 0;
-                        for(int j = 0; j < temp.Length % 8; j++)
-                        {
-                            m <<= 4;
-                            m = uint.Parse(temp[temp.Length/8 + j].ToString(), NumberStyles.HexNumber);
-                        }
-                        outlines.Insert(i, m);
                     }
                 }
                 else
@@ -417,7 +550,7 @@ namespace CAAssembler
                             outlines.Add((uint)cols[0]);
                             int subParamsI = 1;
                             bool brk = false;
-                            if(outlines.Count <= i)
+                            if (outlines.Count <= i)
                             {
                                 outlines.Add(0);
                             }
@@ -436,8 +569,9 @@ namespace CAAssembler
                                         subParamsI++;
                                         break;
                                     case 2:
+                                        outlines[i] += (byte)(uint.Parse(subParams[subParamsI], NumberStyles.HexNumber));
                                         outlines[i] = (uint)(outlines[i] << 8);
-                                        outlines[i] += uint.Parse(subParams[subParamsI], NumberStyles.HexNumber);
+                                        outlines[i] += (byte)(uint.Parse(subParams[subParamsI], NumberStyles.HexNumber) >> 8);
                                         subParamsI++;
                                         brk = true;
                                         break;

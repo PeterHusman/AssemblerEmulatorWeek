@@ -54,9 +54,19 @@ namespace CASuite
                         break;
                     case 2:
                         Console.WriteLine();
+                        string[] options = new string[] { "None", "Debug" };
+                        string extraParam = options[CHelper.SelectorMenu("Choose an extra parameter to provide to the emulator.", options,true, ConsoleColor.Yellow, ConsoleColor.Gray, ConsoleColor.Magenta)];
+                        Console.WriteLine();
                         string filePath = CHelper.RequestInput("Please enter the file path of the file to assemble and emulate.",true,ConsoleColor.Yellow,ConsoleColor.Gray,recursiveFileSearch($@"C:\Users\{Environment.UserName}"));
                         CAAssembler.Program.Main(new string[] { filePath, filePath + ".temp", @"C:\Users\PeterHusman\Downloads\Assembly To Machine Code Chart - Sheet1 (4).csv", "fullassemble" });
-                        CAEmulator.Program.Main(new string[] { filePath + ".temp"});
+                        if (extraParam == "None")
+                        {
+                            CAEmulator.Program.Main(new string[] { filePath + ".temp" });
+                        }
+                        else
+                        {
+                            CAEmulator.Program.Main(new string[] { filePath + ".temp", extraParam.ToLower() });
+                        }
                         break;
 
                 }
