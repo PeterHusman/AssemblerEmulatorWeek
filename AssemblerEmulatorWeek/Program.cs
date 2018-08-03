@@ -20,6 +20,13 @@ namespace CAAssembler
         passemble = 2,
         fullassemble = 3
     }
+    public class ID10TUserException : Exception
+    {
+        public ID10TUserException(string message) : base(message)
+        {
+
+        }
+    }
     public class Program
     {
         public static void Main(string[] args)
@@ -34,7 +41,7 @@ namespace CAAssembler
                     {
                         files.Add(s);
                     }
-                    catch (Exception e)
+                    catch
                     {
 
                     }
@@ -45,7 +52,7 @@ namespace CAAssembler
                     {
                         files.AddRange(recursiveFileSearch(s));
                     }
-                    catch (Exception e)
+                    catch
                     {
 
                     }
@@ -209,16 +216,15 @@ namespace CAAssembler
                 return -1;
             }
             string[] lines = File.ReadAllLines(fileInPath);
-            Dictionary<string, ushort> variables = new Dictionary<string, ushort>();
+            Dictionary<string, ushort> staticVariables = new Dictionary<string, ushort>();
             for (int i = 0; i < lines.Length; i++)
             {
                 if (lines[i].Contains("="))
                 {
                     string s = lines[i].Split('=')[0];
-                    uint temp = 0;
-                    if (!uint.TryParse(s.Remove(0, 1), NumberStyles.HexNumber, CultureInfo.CurrentCulture.NumberFormat, out temp))
+                    if (s.StartsWith("_"))//!uint.TryParse(s.Remove(0, 1), NumberStyles.HexNumber, CultureInfo.CurrentCulture.NumberFormat, out temp))
                     {
-                        variables.Add(s.Remove(0,1), (ushort)(variables.Count + 128));
+                        staticVariables.Add(s.Remove(s.Length - 1, 1), (ushort)(staticVariables.Count + 128));
                     }
                 }
             }
@@ -226,10 +232,31 @@ namespace CAAssembler
             {
                 lines[i] = lines[i].Split(';')[0].Trim(' ');
                 string[] subParams = lines[i].Split(' ');
-                if (subParams.Length <= 2)
+                if (lines[i].StartsWith("cal") && lines[i].Split('(').Length > 1)
+                {
+                    string[] parameters = lines[i].Split(new char[] { '(' }, 2)[1].Replace(")", "").Split(',');
+                    lines[i] = lines[i].Split('(')[0].Trim();
+                    for (int j = parameters.Length - 1; j >= 0; j--)
+                    {
+                        lines[i] = $"psh {parameters[j].Trim()}\n{lines[i]}";
+                    }
+                }
+                lines[i] = lines[i].Replace("exit", "set r21 1\nstr r21 0");
+                if (subParams.Length == 1)
                 {
                     switch (subParams[0])
                     {
+                        case "exit":
+                            lines[i] = "set r21 1\nstr r21 0";
+                            break;
+                    }
+                }
+                if (subParams.Length == 2)
+                {
+                    switch (subParams[0])
+                    {
+                        case "writeC":
+                            goto case "write";
                         case "write":
                             lines[i] = $"set r21 1\nstr {subParams[1]} 5\nstr r21 6";
                             break;
@@ -247,30 +274,31 @@ namespace CAAssembler
                     string endLabel = "while" + endScopeLine;
                     lines[endScopeLine] = endLabel + ":\n";
                     lines[i] = "";
-                    if (subParams[0] == "do")
+                    if (subParams[0] != "do")
                     {
                         lines[i] = $"jmp {endLabel}\n";
                     }
+                    lines[i + 1] = "nop";
                     lines[i] += $"{startLabel}:";
                     switch (subParams[2])
                     {
                         case "<":
-                            lines[endScopeLine] += $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}";
+                            lines[endScopeLine + 1] = $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}\n{lines[endScopeLine+1]}";
                             break;
                         case ">":
-                            lines[endScopeLine] += $"leq r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}";
+                            lines[endScopeLine + 1] = $"leq r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}\n{lines[endScopeLine+1]}";
                             break;
                         case "<=":
-                            lines[endScopeLine] += $"leq r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}";
+                            lines[endScopeLine + 1] = $"leq r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}\n{lines[endScopeLine+1]}";
                             break;
                         case ">=":
-                            lines[endScopeLine] += $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}";
+                            lines[endScopeLine + 1] = $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}\n{lines[endScopeLine+1]}";
                             break;
                         case "==":
-                            lines[endScopeLine] += $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}";
+                            lines[endScopeLine + 1] = $"equ r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}\n{lines[endScopeLine+1]}";
                             break;
                         case "!=":
-                            lines[endScopeLine] += $"lth r21 {subParams[zero + 1]} {subParams[zero + 3]}\njnz r21 {startLabel}\nleq r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}";
+                            lines[endScopeLine + 1] = $"equ r21 {subParams[zero + 1]} {subParams[zero + 3]}\njiz r21 {startLabel}\n{lines[endScopeLine+1]}";
                             break;
                     }
                 }
@@ -308,25 +336,24 @@ namespace CAAssembler
                             lines[i + 1] = $"jnz r21 {endLabel}";
                             break;
                         case "==":
-                            lines[i] = $"lth r21 {subParams[1]} {subParams[3]}";
-                            lines[i + 1] = $"jnz r21 {endLabel}\nleq r21 {subParams[1]} {subParams[3]}\njiz r21 {endLabel}";
+                            lines[i] = $"equ r21 {subParams[1]} {subParams[3]}";
+                            lines[i + 1] = $"jiz r21 {endLabel}";
                             break;
                         case "!=":
-                            string startLabel = "ifStart" + i;
-                            lines[i] = $"lth r21 {subParams[1]} {subParams[3]}";
-                            lines[i + 1] = $"jnz r21 {startLabel}\nleq r21 {subParams[1]} {subParams[3]}\njiz r21 {startLabel}\njmp {endLabel}\n{startLabel}:";
+                            lines[i] = $"equ r21 {subParams[1]} {subParams[3]}";
+                            lines[i + 1] = $"jnz r21 {endLabel}";
                             break;
                     }
 
                 }
-                if (subParams[1] == "=")
+                if (subParams.Length >= 3 && subParams[1] == "=")
                 {
                     if (subParams.Length <= 3)
                     {
                         switch (subParams[2])
                         {
                             default:
-                                if (subParams[0].StartsWith("*r"))
+                                if (subParams[0].StartsWith("*r") || subParams[0].StartsWith("*_"))
                                 {
                                     lines[i] = $"sti {subParams[2]} {subParams[0].Remove(0, 1)}";
                                 }
@@ -338,7 +365,7 @@ namespace CAAssembler
                                     //}
                                     lines[i] = $"str {subParams[2]} {subParams[0].Remove(0, 1)}";
                                 }
-                                else if (subParams[2].StartsWith("*r"))
+                                else if (subParams[2].StartsWith("*r") || subParams[2].StartsWith("*_"))
                                 {
                                     lines[i] = $"ldi {subParams[0]} {subParams[2].Remove(0, 1)} 0";
                                 }
@@ -378,6 +405,72 @@ namespace CAAssembler
                             break;
                     }
                 }
+            }
+            KeyValuePair<string, ushort>[] toBeStatVars = staticVariables.OrderByDescending((k) => { return k.Key.Length; }).ToArray();
+            staticVariables = new Dictionary<string, ushort>();
+            for (int k = 0; k < toBeStatVars.Length; k++)
+            {
+                staticVariables.Add(toBeStatVars[k].Key, toBeStatVars[k].Value);
+            }
+            Dictionary<string, int> linesToUseStaticVars = new Dictionary<string, int>();
+            int varCount = 0x21;
+            int toRemove = 0;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                throw new Exception("Come back to me!!!!");
+                toRemove = 0;
+                if(lines[i] == "PROGMEM")
+                {
+                    break;
+                }
+                foreach (string s in staticVariables.Keys)
+                {
+                    if (linesToUseStaticVars.Keys.Contains(s) && linesToUseStaticVars[s] + 1 == i)
+                    {
+                        toRemove++;
+                    }
+                    if (lines[i].Contains(s))
+                    {
+                        if (!linesToUseStaticVars.Keys.Contains(s) || i > linesToUseStaticVars[s])
+                        {
+                            varCount++;
+                            lines[i] = $"lod r{(varCount):X} {staticVariables[s]:X5}\n{lines[i]}";
+                            int line = lines.Length - 1;
+                            for (int j = i; j < lines.Length - 1; j++)
+                            {
+                                if (lines[j].Contains(s + " ") || lines[j].EndsWith(s) || lines[j].Contains(s + ")") || lines[j].Contains(s + ",") || lines[j].Contains(s + "\n"))
+                                {
+                                    lines[j] = lines[j].Replace(s + " ", $"r{varCount:X} ");
+                                    lines[j] = lines[j].Replace(s + ")", $"r{varCount:X})");
+                                    lines[j] = lines[j].Replace(s + ",", $"r{varCount:X},");
+                                    lines[j] = lines[j].Replace(s + "\n", $"r{varCount:X}\n");
+                                    if (lines[j].EndsWith(s))
+                                    {
+                                        lines[j] = lines[j].Replace(s, $"r{varCount:X}");
+                                    }
+                                }
+                                else
+                                {
+                                    line = j - 1;
+                                    break;
+                                }
+
+                            }
+                            lines[line] = $"{lines[line]}\nstr r{(varCount):X} {staticVariables[s]:X5}";
+                            if (linesToUseStaticVars.Keys.Contains(s))
+                            {
+                                linesToUseStaticVars[s] = line;
+                            }
+                            else
+                            {
+                                linesToUseStaticVars.Add(s, line);
+                            }
+                        }
+
+                    }
+
+                }
+                varCount -= toRemove;
             }
             File.WriteAllLines(fileOutPath, lines);
         }

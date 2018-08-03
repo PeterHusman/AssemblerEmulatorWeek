@@ -1,11 +1,14 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using CALib;
+using CAAssembler;
+using CAEmulator;
+using System.IO;
 
 namespace Tests
 {
     [TestClass]
-    public class CALibTests
+    public class AssemblerTests
     {
         [TestMethod]
         public void OpCodesGreaterThanZero()
@@ -24,6 +27,12 @@ namespace Tests
                 OpCodes code = (OpCodes)Enum.Parse(typeof(OpCodes), s);
                 Assert.IsTrue((int)code <= 255, $"OpCode {s} had a value of {(int)code:X}, which is more than the maximum allowed of FF.");
             }
+        }
+        [TestMethod]
+        public void AssemblesCorrectly()
+        {
+            //CAAssembler.Program.Assemble();
+            //Assert.AreEqual();
         }
     }
 }

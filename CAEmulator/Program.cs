@@ -25,7 +25,7 @@ namespace CAEmulator
                     {
                         files.Add(s);
                     }
-                    catch (Exception e)
+                    catch
                     {
 
                     }
@@ -36,7 +36,7 @@ namespace CAEmulator
                     {
                         files.AddRange(recursiveFileSearch(s));
                     }
-                    catch (Exception e)
+                    catch
                     {
 
                     }
@@ -63,7 +63,7 @@ namespace CAEmulator
             if (args.Length > 0)
             {
                 filePath = args[0];
-                if(args.Length > 1)
+                if (args.Length > 1)
                 {
                     debug = args[1] == "debug";
                 }
@@ -72,11 +72,11 @@ namespace CAEmulator
             {
                 Console.WriteLine(CHelper.ASCIIArt("PEmulator", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));
                 filePath = CHelper.RequestInput("Please enter the file path of the program to emulate.", true, ConsoleColor.Yellow, ConsoleColor.Gray, recursiveFileSearch($@"C:\Users\{Environment.UserName}"));
-                debug = CHelper.SelectorMenu("Please choose an extra parameter.", new string[] {"None", "Debug" }, true, ConsoleColor.Yellow, ConsoleColor.Gray, ConsoleColor.Magenta) == 1;
+                debug = CHelper.SelectorMenu("Please choose an extra parameter.", new string[] { "None", "Debug" }, true, ConsoleColor.Yellow, ConsoleColor.Gray, ConsoleColor.Magenta) == 1;
                 Console.WriteLine();
             }
             Console.ForegroundColor = ConsoleColor.Gray;
-            if(debug)
+            if (debug)
             {
                 Console.WriteLine("Debug mode entered. Enter a blank line to step through the program and enter Q followed by a register number to query the value of the register.");
             }
@@ -85,15 +85,15 @@ namespace CAEmulator
             MemoryMap memoryMap = new MemoryMap(program);
             while (memoryMap[0x0000] == 0)
             {
-                if(debug)
+                if (debug)
                 {
                     string s = "a";
                     do
                     {
                         s = Console.ReadLine();
-                        if(s.ToLower().StartsWith("q"))
+                        if (s.ToLower().StartsWith("q"))
                         {
-                            Console.WriteLine($"r{s.Remove(0,1)} = {registers[int.Parse(s.Remove(0,1),System.Globalization.NumberStyles.HexNumber)]:X}");
+                            Console.WriteLine($"r{s.Remove(0, 1)} = {registers[int.Parse(s.Remove(0, 1), System.Globalization.NumberStyles.HexNumber)]:X}");
                         }
                     } while (s != "");
                     Span<byte> instr = memoryMap.GetInstruction(registers[0] * 2 + 0x8000);
@@ -203,7 +203,7 @@ namespace CAEmulator
                         registers[0] = (ushort)(MemoryMarshal.Cast<byte, ushort>(instruction.Slice(2))[0] - 1);
                         break;
                     case OpCodes.ret:
-                        registers[0] = (ushort)(memoryMap[registers[0x20]] - 1);
+                        registers[0] = (ushort)(memoryMap[registers[0x20]]);
                         registers[0x20] += (ushort)(MemoryMarshal.Cast<byte, ushort>(instruction.Slice(2))[0] + 1);
                         break;
                     case OpCodes.jmi:
@@ -225,7 +225,7 @@ namespace CAEmulator
                         memoryMap[registers[instruction[3]]] = registers[instruction[1]];
                         break;
                     case OpCodes.ldi:
-                        registers[instruction[1]] =  (ushort)(memoryMap[registers[instruction[2]] - instruction[3]]);
+                        registers[instruction[1]] = (ushort)(memoryMap[registers[instruction[2]] - instruction[3]]);
                         break;
                     case OpCodes.cli:
                         registers[0x20]--;
@@ -246,7 +246,10 @@ namespace CAEmulator
                 }
                 registers[0]++;
             }
-            Console.ReadKey();
+            if (args.Length <= 0)
+            {
+                Console.ReadKey();
+            }
         }
     }
 }

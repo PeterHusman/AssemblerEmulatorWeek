@@ -55,6 +55,14 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AssemblerEmulatorWeek\CAAssembler.csproj">
+      <Project>{6522f5b2-8b9a-41c8-b9aa-e8004a02b05d}</Project>
+      <Name>CAAssembler</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\CAEmulator\CAEmulator.csproj">
+      <Project>{5eddd1bd-2a97-4a72-80e9-dc5592cd8e8c}</Project>
+      <Name>CAEmulator</Name>
+    </ProjectReference>
     <ProjectReference Include="..\CALib\CALib.csproj">
       <Project>{494e2564-8bf2-4825-826c-739500b5c4d3}</Project>
       <Name>CALib</Name>
