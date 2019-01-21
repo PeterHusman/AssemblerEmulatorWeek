@@ -1,0 +1,13 @@
+﻿set r2 1
+set r3 100
+smp r2 r3
+set r3 1000
+loopStart:
+rde r1 1
+lth r4 r1 r3
+jnz r4 loopStart
+pnt r1
+set r3 0
+smp r2 r3
+inf:
+jmp inf

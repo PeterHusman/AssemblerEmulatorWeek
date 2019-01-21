@@ -73,13 +73,13 @@ namespace CAAssembler
             }
             else
             {
-                Console.WriteLine(CHelper.ASCIIArt("PAssembler", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));//, @"C:\Users\PeterHusman\Documents\FontFile.json"));
-                                                                                                                                          //               Console.WriteLine(@"                                  _     _           
-                                                                                                                                          //    /\                          | |   | |          
-                                                                                                                                          //   /  \   ___ ___  ___ _ __ ___ | |__ | | ___ _ __ 
-                                                                                                                                          //  / /\ \ / __/ __|/ _ \ '_ ` _ \| '_ \| |/ _ \ '__|
-                                                                                                                                          // / ____ \\__ \__ \  __/ | | | | | |_) | |  __/ |   
-                                                                                                                                          ///_/    \_\___/___/\___|_| |_| |_|_.__/|_|\___|_|  ");
+                //Console.WriteLine(CHelper.ASCIIArt("PAssembler", CHelper.LoadASCIIFont(@"C:\Users\PeterHusman\Documents\FontFile.json")));// @"C:\Users\PeterHusman\Documents\FontFile.json"));
+               Console.WriteLine(@"                                  _     _           
+    /\                          | |   | |          
+   /  \   ___ ___  ___ _ __ ___ | |__ | | ___ _ __ 
+  / /\ \ / __/ __|/ _ \ '_ ` _ \| '_ \| |/ _ \ '__|
+ / ____ \\__ \__ \  __/ | | | | | |_) | |  __/ |   
+/_/    \_\___/___/\___|_| |_| |_|_.__/|_|\___|_|  ");
                 int choice = CHelper.SelectorMenu("Please select an action.", new string[] { "Assemble", "Dissassemble", "Pseudoassemble", "Pseudoassemble and assemble" }, true, ConsoleColor.Yellow, ConsoleColor.Gray, ConsoleColor.Magenta);
                 Console.WriteLine();
                 string[] recFiles = recursiveFileSearch($@"C:\Users\{Environment.UserName}");
@@ -92,7 +92,7 @@ namespace CAAssembler
             switch (op)
             {
                 case Operation.assemble:
-                    Assemble(path, csv, pathOut, true);
+                    Assemble(path, csv, pathOut, false);
                     break;
                 case Operation.dissassemble:
                     Dissassemble(path, csv, pathOut);
@@ -102,7 +102,7 @@ namespace CAAssembler
                     break;
                 case Operation.fullassemble:
                     HelperToAsm(path, pathOut);
-                    Assemble(pathOut, csv, pathOut, true);
+                    Assemble(pathOut, csv, pathOut, false);
                     break;
             }
             if (args.Length < 4)
@@ -154,7 +154,7 @@ namespace CAAssembler
                 {
                     byte[] subset = instructions.Slice(ptr, 4).ToArray();
                     subset = subset.Reverse().ToArray();
-                    outLines[i] = MemoryMarshal.Cast<byte, uint>(subset)[0].ToString("X4");
+                    outLines[i] = MemoryMarshal.Cast<byte, int>(subset)[0].ToString("X4");
                 }
                 else
                 {
@@ -478,17 +478,17 @@ namespace CAAssembler
         public static Dictionary<string, int[]> GetOpCodesFromCSV(string filePath)
         {
             Dictionary<string, int[]> output = new Dictionary<string, int[]>();
-            Dictionary<string, int> phraseToBytes = new Dictionary<string, int>() { ["DEST REG"] = 1, ["REG TO CHECK"] = 1, ["SRC REG"] = 1, ["SRC1"] = 1, ["SRC2"] = 1, ["CONS"] = 2, ["ADD"] = 2, ["SRC ADD"] = 2, ["DEST ADD"] = 2, ["0"] = -1, ["NUM TO POP"] = 2, ["OFF"] = 2, ["PTR REG"] = 1, ["OFFSET"] = 1 };
+            Dictionary<string, int> phraseToBytes = new Dictionary<string, int>() { ["PORT REG"] = 1, ["POWER REG"] = 1, ["DEST REG"] = 1, ["REG TO CHECK"] = 1, ["SRC REG"] = 1, ["SRC1"] = 1, ["SRC2"] = 1, ["CONS"] = 4, ["ADD"] = 3, ["SRC ADD"] = 3, ["DEST ADD"] = 3, ["0"] = -1, ["NUM TO POP"] = 2, ["OFF"] = 2, ["PTR REG"] = 1, ["OFFSET"] = 1, ["SET"] = -1, ["TANT"] = -1, ["RESS"] = -1, [" OFF STACK"] = -1, ["PORT"] = 1 };
             string[] rows = File.ReadAllLines(filePath);
             for (int k = 0; k < rows.Length; k++)
             {
                 string[] cells = rows[k].Split(',');
-                ushort opCode = 0;
+                int opCode = 0;
                 int[] columns;
                 bool success = false;
                 try
                 {
-                    opCode = ushort.Parse(cells[1], NumberStyles.HexNumber);
+                    opCode = int.Parse(cells[1]);
                     success = true;
                 }
                 catch
@@ -502,11 +502,11 @@ namespace CAAssembler
                     for (int i = 0; i < 3; i++)
                     {
                         columns[1 + i] = phraseToBytes[cells[4 + i]];
-                        if (columns[i + 1] == 2)
-                        {
-                            columns[i + 2] = 0;
-                            break;
-                        }
+                        //if (columns[i + 1] == 2)
+                        //{
+                        //    columns[i + 2] = 0;
+                        //    break;
+                        //}
                     }
                     output.Add(cells[0], columns);
                 }
@@ -517,7 +517,7 @@ namespace CAAssembler
         public static void Assemble(string filePathIn, Dictionary<string, int[]> opCodes, string filePathOut, bool outputAsBytes)
         {
             string[] lines = File.ReadAllText(filePathIn).Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            List<uint> outlines = new List<uint>();
+            List<int> outlines = new List<int>();
 
             bool progmem = false;
             Dictionary<string, ushort> labels = new Dictionary<string, ushort>();
@@ -571,7 +571,7 @@ namespace CAAssembler
                         {
                             if (lines[i].Split(' ')[j] == label)
                             {
-                                lines[i] = lines[i].Replace(label, labels[label].ToString("X"));
+                                lines[i] = lines[i].Replace(label, labels[label].ToString());
                             }
 
                         }
@@ -602,7 +602,7 @@ namespace CAAssembler
                 }
                 if (subParams[0] == "PROGMEM")
                 {
-                    outlines.Add(0xFFFF_FFFF);
+                    outlines.Add(0);
                     progmem = true;
                 }
                 else if (progmem)
@@ -610,10 +610,10 @@ namespace CAAssembler
                     if (lines[i].Contains('"'))
                     {
                         string temp = JsonConvert.DeserializeObject<string>(lines[i]);
-                        List<uint> list = new List<uint>();
+                        List<int> list = new List<int>();
                         for (int j = 0; j < temp.Length; j++)
                         {
-                            list.Add((uint)temp[j] << 8);
+                            list.Add((int)temp[j] << 8);
                         }
                         list.Add(0);
                         outlines.AddRange(list.ToArray());
@@ -625,7 +625,7 @@ namespace CAAssembler
                         for (int j = 0; j < lns.Length; j++)
                         {
                             ushort s = ushort.Parse(lns[j], NumberStyles.HexNumber);
-                            uint toAdd = 0;
+                            int toAdd = 0;
                             toAdd += (byte)(s);
                             toAdd <<= 8;
                             toAdd += (byte)(s >> 8);
@@ -640,16 +640,16 @@ namespace CAAssembler
                         if (subParams[0] == o)
                         {
                             int[] cols = opCodes[o];
-                            outlines.Add((uint)cols[0]);
+                            outlines.Add(0);
                             int subParamsI = 1;
                             bool brk = false;
                             if (outlines.Count <= i)
                             {
-                                outlines.Add(0);
+                                outlines.Add(-100000);
                             }
                             for (int j = 1; j <= 3; j++)
                             {
-                                outlines[i] = (uint)(outlines[i] << 8);
+                                outlines[i] = (int)(outlines[i] * 10);
                                 switch (cols[j])
                                 {
                                     case -1:
@@ -658,24 +658,34 @@ namespace CAAssembler
                                         brk = true;
                                         break;
                                     case 1:
-                                        outlines[i] += uint.Parse(subParams[subParamsI], NumberStyles.HexNumber);
+                                        outlines[i] += int.Parse(subParams[subParamsI]);
                                         subParamsI++;
                                         break;
                                     case 2:
-                                        outlines[i] += (byte)(uint.Parse(subParams[subParamsI], NumberStyles.HexNumber));
-                                        outlines[i] = (uint)(outlines[i] << 8);
-                                        outlines[i] += (byte)(uint.Parse(subParams[subParamsI], NumberStyles.HexNumber) >> 8);
+                                        outlines[i] *= 10;
+                                        outlines[i] += (int.Parse(subParams[subParamsI]));
                                         subParamsI++;
                                         brk = true;
                                         break;
-
-
+                                    case 3:
+                                        outlines[i] *= 100;
+                                        outlines[i] += (int.Parse(subParams[subParamsI]));
+                                        subParamsI++;
+                                        brk = true;
+                                        break;
+                                    case 4:
+                                        outlines[i] *= 1000;
+                                        outlines[i] += (int.Parse(subParams[subParamsI]));
+                                        subParamsI++;
+                                        brk = true;
+                                        break;
                                 }
                                 if (brk)
                                 {
                                     break;
                                 }
                             }
+                            outlines[i] += cols[0] * 100000;
                             break;
 
                         }
@@ -684,12 +694,14 @@ namespace CAAssembler
             }
             if (!outputAsBytes)
             {
-                string[] outputLines = new string[outlines.Count];
+                StringBuilder output = new StringBuilder();
                 for (int i = 0; i < outlines.Count; i++)
                 {
-                    outputLines[i] = outlines[i].ToString("X8");
+                    output.Append(outlines[i].ToString());
+                    //output.Append('\n');
+                    output.Append('\r');
                 }
-                File.WriteAllLines(filePathOut, outputLines);
+                File.WriteAllText(filePathOut, output.ToString());
             }
             else
             {
